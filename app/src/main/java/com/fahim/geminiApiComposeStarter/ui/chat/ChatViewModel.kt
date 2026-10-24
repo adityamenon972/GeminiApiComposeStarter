@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.fahim.geminiApiComposeStarter.data.GeminiRepository
+import com.fahim.geminiApiComposeStarter.data.security.EncryptedKeyDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,11 +13,28 @@ import kotlinx.coroutines.launch
 
 class ChatViewModel(
     private val repository: GeminiRepository,
-    private val hasApiKey: Boolean,
+    private var hasApiKey: Boolean = false,
+    private val keyDataStore: EncryptedKeyDataStore? = null,
+    buildConfigApiKey: String = "",
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+    init {
+        if (buildConfigApiKey.isNotBlank()) {
+            hasApiKey = true
+            viewModelScope.launch {
+                keyDataStore?.saveApiKey(buildConfigApiKey)
+            }
+        } else if (keyDataStore != null) {
+            viewModelScope.launch {
+                if (keyDataStore.hasStoredKey()) {
+                    hasApiKey = true
+                }
+            }
+        }
+    }
 
     fun onPromptChange(value: String) {
         _uiState.update { it.copy(prompt = value, promptError = null) }
@@ -56,11 +74,20 @@ class ChatViewModel(
         const val MISSING_API_KEY_MESSAGE =
             "GEMINI_API_KEY is missing. Add it to local.properties and rebuild."
 
-        fun factory(repository: GeminiRepository, hasApiKey: Boolean) =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    ChatViewModel(repository, hasApiKey) as T
-            }
+        fun factory(
+            repository: GeminiRepository,
+            hasApiKey: Boolean = false,
+            keyDataStore: EncryptedKeyDataStore? = null,
+            buildConfigApiKey: String = "",
+        ) = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                ChatViewModel(
+                    repository = repository,
+                    hasApiKey = hasApiKey || buildConfigApiKey.isNotBlank(),
+                    keyDataStore = keyDataStore,
+                    buildConfigApiKey = buildConfigApiKey,
+                ) as T
+        }
     }
 }
