@@ -68,9 +68,10 @@ fun ChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.size - 1)
+    LaunchedEffect(state.messages.size, state.isLoading) {
+        val totalCount = state.messages.size + if (state.isLoading) 1 else 0
+        if (totalCount > 0) {
+            listState.animateScrollToItem(totalCount - 1)
         }
     }
 
@@ -93,6 +94,7 @@ fun ChatScreen(
         ) {
             ChatMessagesArea(
                 messages = state.messages,
+                isLoading = state.isLoading,
                 listState = listState,
                 modifier = Modifier
                     .weight(1f)
@@ -113,10 +115,11 @@ fun ChatScreen(
 @Composable
 private fun ChatMessagesArea(
     messages: List<ChatMessage>,
+    isLoading: Boolean,
     listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
-    if (messages.isEmpty()) {
+    if (messages.isEmpty() && !isLoading) {
         Box(
             modifier = modifier,
             contentAlignment = Alignment.Center,
@@ -140,6 +143,40 @@ private fun ChatMessagesArea(
             ) { message ->
                 ChatBubble(message = message)
             }
+            if (isLoading) {
+                item(key = "chat_loading_indicator") {
+                    LoadingBubble()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoadingBubble(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_assistant),
+            contentDescription = null,
+            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Surface(
+            shape = RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
