@@ -40,6 +40,10 @@ class ChatViewModel(
         _uiState.update { it.copy(prompt = value, promptError = null) }
     }
 
+    fun onDismissError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
     fun onSend() {
         val prompt = _uiState.value.prompt.trim()
         if (prompt.isEmpty()) {

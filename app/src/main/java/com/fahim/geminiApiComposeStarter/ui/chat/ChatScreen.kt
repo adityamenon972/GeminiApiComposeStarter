@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +53,7 @@ fun ChatRoute(viewModel: ChatViewModel) {
         state = state,
         onPromptChange = viewModel::onPromptChange,
         onSend = viewModel::onSend,
+        onErrorDismiss = viewModel::onDismissError,
     )
 }
 
@@ -60,6 +62,8 @@ fun ChatScreen(
     state: ChatUiState,
     onPromptChange: (String) -> Unit,
     onSend: () -> Unit,
+    onErrorDismiss: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -71,11 +75,14 @@ fun ChatScreen(
     }
 
     LaunchedEffect(state.errorMessage) {
-        state.errorMessage?.let { snackbarHostState.showSnackbar(it) }
+        state.errorMessage?.let { errorMsg ->
+            snackbarHostState.showSnackbar(errorMsg)
+            onErrorDismiss()
+        }
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize().imePadding(),
+        modifier = modifier.fillMaxSize().imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
@@ -84,36 +91,13 @@ fun ChatScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            if (state.messages.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.response_placeholder),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                ) {
-                    items(
-                        items = state.messages,
-                        key = { it.id },
-                    ) { message ->
-                        ChatBubble(message = message)
-                    }
-                }
-            }
+            ChatMessagesArea(
+                messages = state.messages,
+                listState = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
 
             PromptBar(
                 prompt = state.prompt,
@@ -122,6 +106,40 @@ fun ChatScreen(
                 onPromptChange = onPromptChange,
                 onSend = onSend,
             )
+        }
+    }
+}
+
+@Composable
+private fun ChatMessagesArea(
+    messages: List<ChatMessage>,
+    listState: LazyListState,
+    modifier: Modifier = Modifier,
+) {
+    if (messages.isEmpty()) {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.response_placeholder),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        LazyColumn(
+            state = listState,
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp),
+        ) {
+            items(
+                items = messages,
+                key = { it.id },
+            ) { message ->
+                ChatBubble(message = message)
+            }
         }
     }
 }
