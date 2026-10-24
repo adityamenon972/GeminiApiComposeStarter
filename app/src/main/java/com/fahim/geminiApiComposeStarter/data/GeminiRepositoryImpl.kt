@@ -8,9 +8,12 @@ import com.fahim.geminiApiComposeStarter.ui.chat.ChatMessage
 import com.fahim.geminiApiComposeStarter.ui.chat.Participant
 import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 private const val TAG = "GeminiRepository"
 private const val DEFAULT_MODEL = "gemini-3.6-flash"
@@ -18,12 +21,14 @@ private const val DEFAULT_MODEL = "gemini-3.6-flash"
 class GeminiRepositoryImpl(
     private val keyProvider: suspend () -> String,
     private val chatMessageDao: ChatMessageDao? = null,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val modelName: String = DEFAULT_MODEL,
 ) : GeminiRepository {
 
     constructor(
         keyDataStore: EncryptedKeyDataStore,
         chatMessageDao: ChatMessageDao? = null,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
         modelName: String = DEFAULT_MODEL,
     ) : this(
         keyProvider = {
@@ -31,16 +36,19 @@ class GeminiRepositoryImpl(
                 ?: throw IllegalStateException("Gemini API key is not available or decrypted key is null")
         },
         chatMessageDao = chatMessageDao,
+        ioDispatcher = ioDispatcher,
         modelName = modelName,
     )
 
     constructor(
         apiKey: String,
         chatMessageDao: ChatMessageDao? = null,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
         modelName: String = DEFAULT_MODEL,
     ) : this(
         keyProvider = { apiKey },
         chatMessageDao = chatMessageDao,
+        ioDispatcher = ioDispatcher,
         modelName = modelName,
     )
 
@@ -49,11 +57,11 @@ class GeminiRepositoryImpl(
 
     private val historyFlow = MutableStateFlow<List<ChatMessage>>(emptyList())
 
-    init {
-        refreshHistory()
+    suspend fun initializeHistory() = withContext(ioDispatcher) {
+        refreshHistoryInternal()
     }
 
-    private fun refreshHistory() {
+    private suspend fun refreshHistoryInternal() {
         if (chatMessageDao != null) {
             try {
                 val entities = chatMessageDao.allMessages
@@ -67,7 +75,7 @@ class GeminiRepositoryImpl(
                 }
                 historyFlow.value = domainMessages
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to load initial history from Room", e)
+                Log.w(TAG, "Failed to load history from Room", e)
             }
         }
     }
@@ -80,25 +88,27 @@ class GeminiRepositoryImpl(
         }
     }
 
-    override suspend fun generateText(prompt: String): Result<String> = try {
-        val model = getOrCreateModel()
-        val response = model.generateContent(prompt)
-        val text = response.text?.takeIf { it.isNotBlank() }
-        if (text != null) {
-            Result.success(text)
-        } else {
-            Result.failure(IllegalStateException("Empty response from Gemini"))
+    override suspend fun generateText(prompt: String): Result<String> = withContext(ioDispatcher) {
+        try {
+            val model = getOrCreateModel()
+            val response = model.generateContent(prompt)
+            val text = response.text?.takeIf { it.isNotBlank() }
+            if (text != null) {
+                Result.success(text)
+            } else {
+                Result.failure(IllegalStateException("Empty response from Gemini"))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "generateContent failed", e)
+            Result.failure(e)
         }
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Log.e(TAG, "generateContent failed", e)
-        Result.failure(e)
     }
 
     override fun getChatHistory(): Flow<List<ChatMessage>> = historyFlow.asStateFlow()
 
-    override suspend fun saveMessage(message: ChatMessage) {
+    override suspend fun saveMessage(message: ChatMessage): Unit = withContext(ioDispatcher) {
         if (chatMessageDao != null) {
             chatMessageDao.insertMessage(
                 ChatMessageEntity(
@@ -108,13 +118,13 @@ class GeminiRepositoryImpl(
                     message.timestamp,
                 )
             )
-            refreshHistory()
+            refreshHistoryInternal()
         } else {
             historyFlow.value = historyFlow.value + message
         }
     }
 
-    override suspend fun clearHistory() {
+    override suspend fun clearHistory(): Unit = withContext(ioDispatcher) {
         chatMessageDao?.clearAllMessages()
         historyFlow.value = emptyList()
     }

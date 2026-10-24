@@ -23,6 +23,7 @@ class ChatViewModel(
 
     init {
         viewModelScope.launch {
+            (repository as? com.fahim.geminiApiComposeStarter.data.GeminiRepositoryImpl)?.initializeHistory()
             repository.getChatHistory().collect { history ->
                 _uiState.update { it.copy(messages = history) }
             }
