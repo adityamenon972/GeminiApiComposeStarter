@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,32 +92,106 @@ fun ChatScreen(
         }
     }
 
+    val isExpanded = windowWidthSizeClass == WindowWidthSizeClass.Expanded
+
     Scaffold(
         modifier = modifier.fillMaxSize().imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            ChatMessagesArea(
-                messages = state.messages,
-                isLoading = state.isLoading,
-                listState = listState,
+        if (isExpanded) {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            )
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_assistant),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.app_name),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                        Text(
+                            text = "Model: gemini-3.6-flash",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.response_placeholder),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
 
-            PromptBar(
-                prompt = state.prompt,
-                promptError = state.promptError,
-                enabled = !state.isLoading,
-                onPromptChange = onPromptChange,
-                onSend = onSend,
-            )
+                Column(
+                    modifier = Modifier
+                        .weight(2f)
+                        .fillMaxSize(),
+                ) {
+                    ChatMessagesArea(
+                        messages = state.messages,
+                        isLoading = state.isLoading,
+                        listState = listState,
+                        maxBubbleWidth = 520.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                    )
+                    PromptBar(
+                        prompt = state.prompt,
+                        promptError = state.promptError,
+                        enabled = !state.isLoading,
+                        onPromptChange = onPromptChange,
+                        onSend = onSend,
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                ChatMessagesArea(
+                    messages = state.messages,
+                    isLoading = state.isLoading,
+                    listState = listState,
+                    maxBubbleWidth = if (windowWidthSizeClass == WindowWidthSizeClass.Medium) 420.dp else 300.dp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                )
+                PromptBar(
+                    prompt = state.prompt,
+                    promptError = state.promptError,
+                    enabled = !state.isLoading,
+                    onPromptChange = onPromptChange,
+                    onSend = onSend,
+                )
+            }
         }
     }
 }
@@ -126,6 +201,7 @@ private fun ChatMessagesArea(
     messages: List<ChatMessage>,
     isLoading: Boolean,
     listState: LazyListState,
+    maxBubbleWidth: Dp = 300.dp,
     modifier: Modifier = Modifier,
 ) {
     if (messages.isEmpty() && !isLoading) {
@@ -150,7 +226,7 @@ private fun ChatMessagesArea(
                 items = messages,
                 key = { it.id },
             ) { message ->
-                ChatBubble(message = message)
+                ChatBubble(message = message, maxWidth = maxBubbleWidth)
             }
             if (isLoading) {
                 item(key = "chat_loading_indicator") {
@@ -191,7 +267,11 @@ private fun LoadingBubble(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage, modifier: Modifier = Modifier) {
+private fun ChatBubble(
+    message: ChatMessage,
+    maxWidth: Dp = 300.dp,
+    modifier: Modifier = Modifier,
+) {
     val isUser = message.participant == Participant.USER
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -222,7 +302,7 @@ private fun ChatBubble(message: ChatMessage, modifier: Modifier = Modifier) {
             } else {
                 MaterialTheme.colorScheme.surfaceVariant
             },
-            modifier = Modifier.widthIn(max = 300.dp),
+            modifier = Modifier.widthIn(max = maxWidth),
             tonalElevation = 1.dp,
         ) {
             if (isUser) {
