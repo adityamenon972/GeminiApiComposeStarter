@@ -82,7 +82,7 @@ class ChatViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = error.message ?: "Something went wrong",
+                            errorMessage = error.localizedMessage ?: "API request failed. Please check your connection and try again.",
                         )
                     }
                 },

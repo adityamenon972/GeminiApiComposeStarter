@@ -77,7 +77,10 @@ fun ChatScreen(
 
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let { errorMsg ->
-            snackbarHostState.showSnackbar(errorMsg)
+            snackbarHostState.showSnackbar(
+                message = errorMsg,
+                withDismissAction = true,
+            )
             onErrorDismiss()
         }
     }
