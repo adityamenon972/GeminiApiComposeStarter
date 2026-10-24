@@ -30,6 +30,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,10 +48,14 @@ import com.fahim.geminiApiComposeStarter.ui.text.toBoldAnnotatedString
 import com.fahim.geminiApiComposeStarter.ui.theme.GeminiApiComposeStarterTheme
 
 @Composable
-fun ChatRoute(viewModel: ChatViewModel) {
+fun ChatRoute(
+    viewModel: ChatViewModel,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ChatScreen(
         state = state,
+        windowWidthSizeClass = windowWidthSizeClass,
         onPromptChange = viewModel::onPromptChange,
         onSend = viewModel::onSend,
         onErrorDismiss = viewModel::onDismissError,
@@ -60,6 +65,7 @@ fun ChatRoute(viewModel: ChatViewModel) {
 @Composable
 fun ChatScreen(
     state: ChatUiState,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     onPromptChange: (String) -> Unit,
     onSend: () -> Unit,
     onErrorDismiss: () -> Unit = {},
