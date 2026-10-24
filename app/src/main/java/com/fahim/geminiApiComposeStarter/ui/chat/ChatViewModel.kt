@@ -22,6 +22,12 @@ class ChatViewModel(
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            repository.getChatHistory().collect { history ->
+                _uiState.update { it.copy(messages = history) }
+            }
+        }
+
         if (buildConfigApiKey.isNotBlank()) {
             hasApiKey = true
             viewModelScope.launch {
@@ -44,6 +50,13 @@ class ChatViewModel(
         _uiState.update { it.copy(errorMessage = null) }
     }
 
+    fun onClearChat() {
+        viewModelScope.launch {
+            repository.clearHistory()
+            _uiState.update { it.copy(messages = emptyList(), response = "") }
+        }
+    }
+
     fun onSend() {
         val prompt = _uiState.value.prompt.trim()
         if (prompt.isEmpty()) {
@@ -59,7 +72,6 @@ class ChatViewModel(
         val userMessage = ChatMessage(text = prompt, participant = Participant.USER)
         _uiState.update {
             it.copy(
-                messages = it.messages + userMessage,
                 prompt = "",
                 isLoading = true,
                 errorMessage = null,
@@ -67,14 +79,15 @@ class ChatViewModel(
             )
         }
         viewModelScope.launch {
+            repository.saveMessage(userMessage)
             repository.generateText(prompt).fold(
                 onSuccess = { text ->
                     val assistantMessage = ChatMessage(text = text, participant = Participant.MODEL)
+                    repository.saveMessage(assistantMessage)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             response = text,
-                            messages = it.messages + assistantMessage,
                         )
                     }
                 },

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,16 +69,19 @@ fun ChatRoute(
         windowWidthSizeClass = windowWidthSizeClass,
         onPromptChange = viewModel::onPromptChange,
         onSend = viewModel::onSend,
+        onClearChat = viewModel::onClearChat,
         onErrorDismiss = viewModel::onDismissError,
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     state: ChatUiState,
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     onPromptChange: (String) -> Unit,
     onSend: () -> Unit,
+    onClearChat: () -> Unit = {},
     onErrorDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -104,6 +109,21 @@ fun ChatScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize().imePadding(),
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.app_name)) },
+                actions = {
+                    if (state.messages.isNotEmpty()) {
+                        IconButton(onClick = onClearChat) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_delete),
+                                contentDescription = stringResource(R.string.clear_chat),
+                            )
+                        }
+                    }
+                },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         if (isExpanded) {
